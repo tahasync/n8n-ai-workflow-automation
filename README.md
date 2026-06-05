@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/n8n-logo.png" alt="n8n" width="80"/>
+  <img src="assets/n8n-logo.svg" alt="n8n" width="80"/>
   <h1>n8n AI-Powered Workflow Automation</h1>
   <p><strong>Tools & Techniques for Data Science — Assignment 2</strong></p>
   <p>
