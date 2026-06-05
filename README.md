@@ -33,6 +33,8 @@ This repository showcases two practical workflow automation pipelines built with
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Setup Instructions](#setup-instructions)
+  - [Environment Variables](#environment-variables)
+- [Security](#security)
 - [Screenshots](#screenshots)
 - [Architecture](#architecture)
 - [Technologies Used](#technologies-used)
@@ -116,41 +118,58 @@ Navigate to [http://localhost:5678](http://localhost:5678).
    - `workflows/Task_2_Telegram_AI_Workflow.json`
    - `workflows/Task_2_WhatsApp_AI_Workflow.json`
 
-#### 3. Configure Credentials
+#### 3. Configure Environment Variables
 
-<details>
-<summary><b>Google Sheets / Calendar</b></summary>
+Copy `.env.example` to `.env` and fill in your credentials:
 
-1. Open the Google node's settings → **Create New Credentials**
-2. Select **Google Sheets API** / **Google Calendar API**
-3. Follow the OAuth2 flow to authenticate with your Google account
-4. Update the Sheet ID (for Google Sheets nodes) and Calendar ID (for Calendar triggers)
-</details>
+```bash
+cp .env.example .env
+```
 
-<details>
-<summary><b>OpenRouter AI</b></summary>
+All workflows reference environment variables via `{{$env.VAR_NAME}}` — no secrets are hardcoded in the JSON files. See [Environment Variables](#environment-variables) for the full list.
 
-1. Sign up at [openrouter.ai](https://openrouter.ai) and generate an API key
-2. In the **OpenRouter AI** node → **Header Parameters**, replace `Bearer YOUR_OPENROUTER_API_KEY` with your key
-</details>
+#### 4. Load Environment Variables in n8n
 
-<details>
-<summary><b>Telegram</b></summary>
+Start n8n with the `--env` flag pointing to your `.env` file:
 
-1. Message [@BotFather](https://t.me/BotFather) on Telegram to create a new bot
-2. Copy the bot token and replace `YOUR_BOT_TOKEN` in the Telegram node URL
-3. Find your chat ID (message [@userinfobot](https://t.me/userinfobot)) and replace `YOUR_CHAT_ID`
-</details>
+```bash
+docker run -it --rm \
+  --name n8n \
+  -p 5678:5678 \
+  -v n8n_data:/home/node/.n8n \
+  -v $(pwd)/.env:/home/node/.env \
+  -e N8N_ENV_FILE=/home/node/.env \
+  docker.n8n.io/n8nio/n8n
+```
 
-<details>
-<summary><b>WhatsApp (Green API)</b></summary>
+Alternatively, set variables directly via Docker `-e` flags:
 
-1. Sign up at [green-api.com](https://green-api.com) and create an instance
-2. Replace `YOUR_INSTANCE_ID` and `YOUR_API_TOKEN` in the WhatsApp node URL
-3. Set the `chatId` to your target number in international format
-</details>
+---
 
-#### 4. Test the Workflows
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENROUTER_API_KEY` | Yes | OpenRouter AI API key ([get one here](https://openrouter.ai/keys)) |
+| `GOOGLE_SHEET_ID` | Yes | Google Sheet document ID (from the sheet URL) |
+| `TELEGRAM_BOT_TOKEN` | For Telegram | Telegram bot token from [@BotFather](https://t.me/BotFather) |
+| `TELEGRAM_CHAT_ID` | For Telegram | Your Telegram user ID (ask [@userinfobot](https://t.me/userinfobot)) |
+| `GREEN_API_INSTANCE` | For WhatsApp | Green API instance ID |
+| `GREEN_API_TOKEN` | For WhatsApp | Green API access token |
+| `WHATSAPP_CHAT_ID` | For WhatsApp | Target WhatsApp number (e.g., `923001234567@c.us`) |
+
+> **Note:** Google Calendar / Sheets nodes also require OAuth2 credentials configured directly in n8n's credential store. The environment variables above handle API keys and tokens only.
+
+### Security
+
+- **No secrets in code.** All API keys, tokens, and IDs are injected via environment variables (`$env.*`), never hardcoded in workflow files.
+- **`.env` is gitignored.** The `.env.example` template is safe to commit; your real `.env` stays local.
+- **OAuth2 for Google APIs.** Google Sheets and Calendar use n8n's built-in OAuth2 credential store, keeping tokens encrypted.
+- **Report vulnerabilities.** If you find a security issue, please open a [GitHub Issue](https://github.com/mtahanaeem/n8n-ai-workflow-automation/issues).
+
+---
+
+#### 5. Test the Workflows
 
 - **Task 1:** Click **Execute Workflow** — inspect the HTTP Response output
 - **Task 2:** Create a test event on your Google Calendar — the AI will generate a message and deliver it within a minute

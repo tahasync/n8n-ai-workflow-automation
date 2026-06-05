@@ -46,7 +46,7 @@
         "operation": "append",
         "documentId": {
           "__rl": true,
-          "value": "YOUR_DOCUMENT_ID",
+          "value": "{{$env.GOOGLE_SHEET_ID}}",
           "mode": "id"
         },
         "sheetName": {
