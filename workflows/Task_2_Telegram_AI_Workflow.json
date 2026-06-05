@@ -1,0 +1,328 @@
+{
+  "name": "Task 2 - Google Calendar to Telegram with AI (Final)",
+  "nodes": [
+    {
+      "parameters": {
+        "event": "created",
+        "calendarId": "primary",
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "trigger-created",
+      "name": "Calendar: Event Created",
+      "type": "n8n-nodes-base.googleCalendarTrigger",
+      "typeVersion": 1,
+      "position": [250, 100]
+    },
+    {
+      "parameters": {
+        "event": "updated",
+        "calendarId": "primary",
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "trigger-updated",
+      "name": "Calendar: Event Updated",
+      "type": "n8n-nodes-base.googleCalendarTrigger",
+      "typeVersion": 1,
+      "position": [250, 220]
+    },
+    {
+      "parameters": {
+        "event": "cancelled",
+        "calendarId": "primary",
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "trigger-cancelled",
+      "name": "Calendar: Event Cancelled",
+      "type": "n8n-nodes-base.googleCalendarTrigger",
+      "typeVersion": 1,
+      "position": [250, 340]
+    },
+    {
+      "parameters": {
+        "event": "started",
+        "calendarId": "primary",
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "trigger-started",
+      "name": "Calendar: Event Started",
+      "type": "n8n-nodes-base.googleCalendarTrigger",
+      "typeVersion": 1,
+      "position": [250, 460]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-summary",
+              "name": "event_summary",
+              "value": "={{ $json.summary || $json.title || $json.name || 'Untitled Event' }}",
+              "type": "string"
+            },
+            {
+              "id": "field-start",
+              "name": "event_start",
+              "value": "={{ $json.start?.dateTime || $json.start?.date || 'No date' }}",
+              "type": "string"
+            },
+            {
+              "id": "field-location",
+              "name": "event_location",
+              "value": "={{ $json.location || 'No location' }}",
+              "type": "string"
+            },
+            {
+              "id": "field-status",
+              "name": "event_status",
+              "value": "={{ $json.status === 'cancelled' ? 'Cancelled' : $json.status === 'tentative' ? 'Tentative' : 'Confirmed' }}",
+              "type": "string"
+            },
+            {
+              "id": "field-action",
+              "name": "event_action",
+              "value": "={{ $json.status === 'cancelled' ? 'DELETED/CANCELLED' : $json.created === $json.updated ? 'CREATED' : 'UPDATED/RENAMED/RESCHEDULED' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "preserve-data",
+      "name": "Preserve Calendar Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_OPENROUTER_API_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'openai/gpt-3.5-turbo', temperature: 0.9, max_tokens: 80, messages: [ { role: 'system', content: 'You are a helpful assistant that turns calendar event notifications into short, friendly messages under 200 characters. Include emojis. Be creative.' }, { role: 'user', content: 'Action: ' + $('Preserve Calendar Data').first().json.event_action + '. Title: ' + $('Preserve Calendar Data').first().json.event_summary + '. When: ' + $('Preserve Calendar Data').first().json.event_start + '. Location: ' + $('Preserve Calendar Data').first().json.event_location } ] }) }}",
+        "options": {}
+      },
+      "id": "openrouter-ai",
+      "name": "OpenRouter AI (Generate Message)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [550, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/botYOUR_BOT_TOKEN/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: YOUR_CHAT_ID, text: $json.choices[0].message.content }) }}",
+        "options": {}
+      },
+      "id": "telegram-send",
+      "name": "Send Message via Telegram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-timestamp",
+              "name": "timestamp",
+              "value": "={{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}",
+              "type": "string"
+            },
+            {
+              "id": "field-event-title",
+              "name": "event_title",
+              "value": "={{ $('Preserve Calendar Data').first().json.event_summary }}",
+              "type": "string"
+            },
+            {
+              "id": "field-event-action",
+              "name": "event_action",
+              "value": "={{ $('Preserve Calendar Data').first().json.event_action }}",
+              "type": "string"
+            },
+            {
+              "id": "field-event-status",
+              "name": "event_status",
+              "value": "={{ $('Preserve Calendar Data').first().json.event_status }}",
+              "type": "string"
+            },
+            {
+              "id": "field-ai-message",
+              "name": "ai_message",
+              "value": "={{ $('OpenRouter AI (Generate Message)').first().json.choices[0].message.content }}",
+              "type": "string"
+            },
+            {
+              "id": "field-telegram-sent",
+              "name": "telegram_sent",
+              "value": "Yes",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "prepare-sheet-data",
+      "name": "Prepare Sheet Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "mode": "id",
+          "value": "YOUR_GOOGLE_SHEET_ID"
+        },
+        "sheetId": {
+          "mode": "id",
+          "value": "0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $json.timestamp }}",
+            "event_title": "={{ $json.event_title }}",
+            "ai_message": "={{ $json.ai_message }}",
+            "telegram_sent": "={{ $json.telegram_sent }}",
+            "event_status": "={{ $json.event_status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "event_title",
+              "displayName": "event_title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ai_message",
+              "displayName": "ai_message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "telegram_sent",
+              "displayName": "telegram_sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "event_status",
+              "displayName": "event_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "log-sheet",
+      "name": "Log to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.3,
+      "position": [1000, 300]
+    }
+  ],
+  "connections": {
+    "Calendar: Event Created": {
+      "main": [[{ "node": "Preserve Calendar Data", "type": "main", "index": 0 }]]
+    },
+    "Calendar: Event Updated": {
+      "main": [[{ "node": "Preserve Calendar Data", "type": "main", "index": 0 }]]
+    },
+    "Calendar: Event Cancelled": {
+      "main": [[{ "node": "Preserve Calendar Data", "type": "main", "index": 0 }]]
+    },
+    "Calendar: Event Started": {
+      "main": [[{ "node": "Preserve Calendar Data", "type": "main", "index": 0 }]]
+    },
+    "Preserve Calendar Data": {
+      "main": [[{ "node": "OpenRouter AI (Generate Message)", "type": "main", "index": 0 }]]
+    },
+    "OpenRouter AI (Generate Message)": {
+      "main": [[{ "node": "Send Message via Telegram", "type": "main", "index": 0 }]]
+    },
+    "Send Message via Telegram": {
+      "main": [[{ "node": "Prepare Sheet Data", "type": "main", "index": 0 }]]
+    },
+    "Prepare Sheet Data": {
+      "main": [[{ "node": "Log to Google Sheets", "type": "main", "index": 0 }]]
+    }
+  }
+}

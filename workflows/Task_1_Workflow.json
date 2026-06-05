@@ -1,0 +1,98 @@
+{
+  "name": "Task 1: Form Submission Automation",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "1",
+      "name": "When clicking \"Test Workflow\"",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  { \"json\": { \"name\": \"Alice Smith\", \"email\": \"alice@example.com\", \"age\": 28, \"dropdownSelection\": \"Option A\", \"subscribeToNewsletter\": true } },\n  { \"json\": { \"name\": \"Bob Jones\", \"email\": \"bob@example.com\", \"age\": 34, \"dropdownSelection\": \"Option B\", \"subscribeToNewsletter\": false } },\n  { \"json\": { \"name\": \"Charlie Brown\", \"email\": \"charlie@example.com\", \"age\": 22, \"dropdownSelection\": \"Option C\", \"subscribeToNewsletter\": true } },\n  { \"json\": { \"name\": \"Diana Prince\", \"email\": \"diana@example.com\", \"age\": 29, \"dropdownSelection\": \"Option B\", \"subscribeToNewsletter\": true } },\n  { \"json\": { \"name\": \"Evan Wright\", \"email\": \"evan@example.com\", \"age\": 40, \"dropdownSelection\": \"Option A\", \"subscribeToNewsletter\": false } },\n  { \"json\": { \"name\": \"Fiona Gallagher\", \"email\": \"fiona@example.com\", \"age\": 25, \"dropdownSelection\": \"Option C\", \"subscribeToNewsletter\": true } },\n  { \"json\": { \"name\": \"George Martin\", \"email\": \"george@example.com\", \"age\": 55, \"dropdownSelection\": \"Option B\", \"subscribeToNewsletter\": true } }\n];"
+      },
+      "id": "2",
+      "name": "Generate Form Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://httpbin.org/post",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "name", "value": "={{$json.name}}" },
+            { "name": "email", "value": "={{$json.email}}" },
+            { "name": "age", "value": "={{$json.age}}" },
+            { "name": "dropdownSelection", "value": "={{$json.dropdownSelection}}" },
+            { "name": "subscribeToNewsletter", "value": "={{$json.subscribeToNewsletter}}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3",
+      "name": "Submit Form via HTTP Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_DOCUMENT_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}",
+            "name": "={{ $json.json.name }}",
+            "email": "={{ $json.json.email }}",
+            "status": "={{ $json.json.subscribeToNewsletter ? 'Subscribed' : 'Not Subscribed' }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "4",
+      "name": "Log to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.3,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "When clicking \"Test Workflow\"": {
+      "main": [
+        [
+          { "node": "Generate Form Data", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Generate Form Data": {
+      "main": [
+        [
+          { "node": "Submit Form via HTTP Request", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Submit Form via HTTP Request": {
+      "main": [
+        [
+          { "node": "Log to Google Sheets", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  }
+}
